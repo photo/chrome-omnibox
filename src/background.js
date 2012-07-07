@@ -1,68 +1,78 @@
-var baseUrl = 'http://jmathai.openphoto.me';
-var currentRequest = null;
+var opOmniBox = (function() {
+  var configs;
+  var listeners;
+  var utilities;
+  var tags = [];
 
-chrome.omnibox.onInputChanged.addListener(
-  function(text, suggest) {
-    if (currentRequest != null) {
-      currentRequest.onreadystatechange = null;
-      currentRequest.abort();
-      currentRequest = null;
+  // configs
+  configs = {
+    baseUrl: 'http://jmathai.openphoto.me'
+  };
+
+  // utilities
+  utilities = {
+    currentRequest: null,
+    load: function () {
+      var url = configs.baseUrl + "/tags/list.json";
+      var req = new XMLHttpRequest();
+      var result;
+      req.open("GET", url, true);
+      req.onreadystatechange = function() {
+        if (req.readyState == 4) {
+          var response = JSON.parse(req.responseText);
+
+          if(response.code !== 200)
+            return;
+
+          result = response.result;
+          for (i in result)
+            tags.push(result[i]);
+        }
+      }
+      req.send(null);
+      return req;
     }
+  };
 
-    if (text == '' || text == 'halp')
-      return;
-
-    currentRequest = search(text, function(response) {
-      if(response.code !== 200) {
-        // no tags 
+  // listeners
+  listeners = {
+    onInputChanged: function(text, suggest) {
+      if (text == '' || tags.length === 0) {
+        if(text == '')
+          chrome.omnibox.setDefaultSuggestion({description: 'Start typing tags to filter by.'});
+        else
+          chrome.omnibox.setDefaultSuggestion({description: 'We didn\'t find any tags to search through.'});
         return;
       }
-      var tags = response.result;
+
       var results = [];
-      var description;
-      var content;
+      var re = new RegExp("^"+text);
       var tag;
-      for (i in tags) {
+      for(i in tags) {
         tag = tags[i];
-        content = "View " + tag.count + " photos tagged with " + tag.id;
-        results.push({
-          content: tag.id,
-          description: content
-        });
+        if(tag.id.match(re)) {
+          results.push({
+            content: tag.id,
+            description: "View " + tag.count + " photos tagged with " + tag.id
+          });
+        }
       }
+      chrome.omnibox.setDefaultSuggestion({description: 'We found a total of ' + results.length + ' tags starting with ' + text + '.'});
       suggest(results);
-    });
-  }
-);
-
-function resetDefaultSuggestion() {
-  chrome.omnibox.setDefaultSuggestion({
-    description: 'Start typing tags to filter by'
-  });
-}
-
-function search(query, callback) {
-  var url = baseUrl + "/tags/list.json?search="+query;
-
-  var req = new XMLHttpRequest();
-  req.open("GET", url, true);
-  req.setRequestHeader("GData-Version", "2");
-  req.onreadystatechange = function() {
-    if (req.readyState == 4) {
-      var response = JSON.parse(req.responseText);
-      callback(response);
+    },
+    onInputEntered: function(text) {
+      var url = configs.baseUrl + "/photos/tags-" + text + "/list";
+      chrome.tabs.getSelected(null, function(tab) {
+        chrome.tabs.update(tab.id, {url: url});
+      });
     }
-  }
-  req.send(null);
-  return req;
-}
+  };
 
-function navigate(url) {
-  chrome.tabs.getSelected(null, function(tab) {
-    chrome.tabs.update(tab.id, {url: url});
-  });
-}
-
-chrome.omnibox.onInputEntered.addListener(function(text) {
-  navigate(baseUrl + "/photos/tags-" + text + "/list");
-});
+  return {
+    init: function() {
+      utilities.load();
+      chrome.omnibox.onInputChanged.addListener(listeners.onInputChanged);
+    }
+  };
+})();
+opOmniBox.init();
