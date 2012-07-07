@@ -72,6 +72,7 @@ var opOmniBox = (function() {
     init: function() {
       utilities.load();
       chrome.omnibox.onInputChanged.addListener(listeners.onInputChanged);
+      chrome.omnibox.onInputEntered.addListener(listeners.onInputEntered);
     }
   };
 })();
