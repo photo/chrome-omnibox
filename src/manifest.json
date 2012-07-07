@@ -1,0 +1,17 @@
+{
+  "name": "OpenPhoto",
+  "version": "1.0",
+  "manifest_version": 2,
+  "description": "Quickly search your OpenPhoto site by tags.",
+  "minimum_chrome_version": "9",
+  "omnibox": { "keyword" : "op" },
+  "icons": {
+    "16": "icon.gif"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "permissions": [
+    "storage", "tabs", "http://*.openphoto.me/"
+  ]
+}
